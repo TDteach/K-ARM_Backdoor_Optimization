@@ -3,9 +3,9 @@ import numpy as np
 import random
 import argparse
 import time
-from utils import *
-from Arm_Pre_Screening import Pre_Screening
-from K_Arm_Opt import K_Arm_Opt
+from .utils import *
+from .Arm_Pre_Screening import Pre_Screening
+from .K_ARM_Opt import K_Arm_Opt
 
 # set random seed
 SEED = 333
@@ -22,7 +22,7 @@ def setup_seed(seed):
 setup_seed(SEED)
 
 
-def main():
+def main(model_loading_func=None):
     parser = argparse.ArgumentParser(description='PyTorch K-ARM Backdoor Optimization')
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--input_width', type=int, default=224)
@@ -69,7 +69,10 @@ def main():
 
     print_args(args)
     start_time = time.time()
-    model, num_classes = loading_models(args)
+    if model_loading_func is None:
+        model, num_classes = loading_models(args)
+    else:
+        model, num_classes = model_loading_func(args)
     args.num_classes = num_classes
 
     print('=' * 41 + ' Arm Pre-Screening ' + '=' * 40)
