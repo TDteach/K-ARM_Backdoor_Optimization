@@ -14,20 +14,28 @@ import torch.nn.functional as F
 import numpy as np
 
 
-def Pre_Screening(args, model):
+def Pre_Screening(args, model, dataset_class=None, preprocess_func=None):
     device = torch.device('cuda:%d' % args.device)
+
+    if dataset_class is None:
+        dataset_class = CustomDataSet
+
     transform = transforms.Compose([
         transforms.CenterCrop(args.input_width),
         transforms.ToTensor()
     ])
-
-    dataset = CustomDataSet(args.examples_dirpath, transform=transform, triggered_classes=[])
+    dataset = dataset_class(args.examples_dirpath, transform=transform, triggered_classes=[])
     data_loader = DataLoader(dataset=dataset, batch_size=args.batch_size, shuffle=True, drop_last=False, num_workers=2,
                              pin_memory=True)
     acc = 0
-    for idx, (img, name, label) in enumerate(data_loader):
+    tot = 0
+    model.eval()
+    for idx, data in enumerate(data_loader):
+        img, label = data[0], data[-1]
         img, label = img.to(device), label.to(device)
         # img = img[:,permute,:,:]
+        if preprocess_func is not None:
+            img = preprocess_func(img)
         output = model(img)
         logits = F.softmax(output, 1)
         _, pred = torch.max(output, 1)
@@ -39,14 +47,15 @@ def Pre_Screening(args, model):
             preds_all = torch.cat((preds_all, pred.detach().cpu()), 0)
 
         acc += pred.eq(label.long().view_as(pred)).sum().item()
+        tot += len(label)
 
     if args.num_classes <= 8:
         k = 2
     else:
         k = round(args.num_classes * args.gamma)
 
-    topk_index = torch.topk(logits_all, k, dim=1)[1]
-    topk_logit = torch.topk(logits_all, k, dim=1)[0]
+    topk_index = torch.topk(logits_all, k, dim=1)[1] #topk index
+    topk_logit = torch.topk(logits_all, k, dim=1)[0] #topk value
 
     # step 1: check all label trigger
     target_label = all_label_trigger_det(args, topk_index)
@@ -104,7 +113,7 @@ def specific_label_trigger_det(args, topk_index, topk_logit):
     # print('==========')
 
     for i in range(args.num_classes):
-        # for each class, find the index of samples belongs to that class tmp_1 => index, tmp_1_logit => corresponding logit
+        # for each class, find the index of samples belonging to that class tmp_1 => index, tmp_1_logit => corresponding logit
         tmp_1 = topk_index[topk_index[:, 0] == i]
         # print(tmp_1)
 
@@ -117,6 +126,8 @@ def specific_label_trigger_det(args, topk_index, topk_logit):
                 tmp_2[j] = -1
             else:
                 tmp_2[j] = tmp_1[tmp_1 == j].size(0) / tmp_1.size(0)
+
+                print(i,j,tmp_2[j], args.local_theta)
 
                 # if tmp_2[j]  == 1:
                 if tmp_2[j] >= args.local_theta:

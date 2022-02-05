@@ -11,24 +11,27 @@ from torch.utils.data import DataLoader
 from .K_Arm_Scanner import *
 
 
-def K_Arm_Opt(args, target_classes_all, triggered_classes_all, trigger_type, model, direction):
+def K_Arm_Opt(args, target_classes_all, triggered_classes_all, trigger_type, model, direction, dataset_class=None, preprocess_func=None):
     device = torch.device("cuda:%d" % args.device)
     transform = transforms.Compose([
         transforms.CenterCrop(args.input_width),
         transforms.ToTensor()
     ])
 
+    if dataset_class is None:
+        dataset_class = CustomDataSet
+
     data_loader_arr = []
     if triggered_classes_all is None:
 
-        data_set = CustomDataSet(args.examples_dirpath, transform=transform, triggered_classes=triggered_classes_all)
+        data_set = dataset_class(args.examples_dirpath, transform=transform, triggered_classes=triggered_classes_all)
         data_loader = DataLoader(dataset=data_set, batch_size=args.batch_size, shuffle=False, drop_last=False,
                                  num_workers=8, pin_memory=True)
         data_loader_arr.append(data_loader)
 
     else:
         for i in range(len(target_classes_all)):
-            data_set = CustomDataSet(args.examples_dirpath, transform=transform,
+            data_set = dataset_class(args.examples_dirpath, transform=transform,
                                      triggered_classes=triggered_classes_all[i], label_specific=True)
             data_loader = DataLoader(dataset=data_set, batch_size=args.batch_size, shuffle=False, drop_last=False,
                                      num_workers=8, pin_memory=True)
@@ -69,7 +72,7 @@ def K_Arm_Opt(args, target_classes_all, triggered_classes_all, trigger_type, mod
         start_label_index = 0
 
     pattern, mask, l1_norm, total_times = k_arm_scanner.scanning(target_classes_all, data_loader_arr, start_label_index,
-                                                                 pattern, mask, trigger_type, direction)
+                                                                 pattern, mask, trigger_type, direction, preprocess_func=preprocess_func)
     index = torch.argmin(torch.Tensor(l1_norm))
 
     '''
@@ -91,6 +94,7 @@ def K_Arm_Opt(args, target_classes_all, triggered_classes_all, trigger_type, mod
 
 def main():
     pass
+
 
 if __name__ == '__main__':
     main()

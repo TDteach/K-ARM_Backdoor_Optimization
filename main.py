@@ -22,7 +22,7 @@ def setup_seed(seed):
 setup_seed(SEED)
 
 
-def main(model_loading_func=None):
+def init_args():
     parser = argparse.ArgumentParser(description='PyTorch K-ARM Backdoor Optimization')
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--input_width', type=int, default=224)
@@ -65,8 +65,14 @@ def main(model_loading_func=None):
                         default='/data/share/trojai/trojai-round3-dataset/id-00000189/clean_example_data/')
     parser.add_argument('--model_filepath', type=str,
                         default='/data/share/trojai/trojai-round3-dataset/id-00000189/model.pt')
-    args = parser.parse_args()
 
+    args = parser.parse_args()
+    return args
+
+
+def main(model_loading_func=None, args=None, dataset_class=None, preprocess_func=None):
+    if args is None:
+        args = init_args()
     print_args(args)
     start_time = time.time()
     if model_loading_func is None:
@@ -77,7 +83,7 @@ def main(model_loading_func=None):
 
     print('=' * 41 + ' Arm Pre-Screening ' + '=' * 40)
 
-    raw_target_classes, raw_victim_classes = Pre_Screening(args, model)
+    raw_target_classes, raw_victim_classes = Pre_Screening(args, model, dataset_class=dataset_class, preprocess_func=preprocess_func)
     target_classes, victim_classes, num_classes, trigger_type = identify_trigger_type(raw_target_classes,
                                                                                       raw_victim_classes)
     args.num_classes = num_classes
@@ -92,7 +98,9 @@ def main(model_loading_func=None):
 
         print('=' * 40 + ' K-ARM Optimization ' + '=' * 40)
         l1_norm, mask, target_class, victim_class, opt_times = K_Arm_Opt(args, target_classes, victim_classes,
-                                                                         trigger_type, model, 'forward')
+                                                                         trigger_type, model, 'forward',
+                                                                         dataset_class=dataset_class,
+                                                                         preprocess_func=preprocess_func)
         print(
             f'Target Class: {target_class} Victim Class: {victim_class} Trigger Size: {l1_norm} Optimization Steps: {opt_times}')
         if args.sym_check and trigger_type == 'polygon_specific':
@@ -104,7 +112,7 @@ def main(model_loading_func=None):
 
             print('=' * 40 + ' Symmetric Check ' + '=' * 40)
             sym_l1_norm, _, _, _, _ = K_Arm_Opt(args, sym_target_class, sym_victim_class, trigger_type, model,
-                                                'backward')
+                                                'backward', dataset_class=dataset_class, preprocess_func=preprocess_func)
         else:
             sym_l1_norm = None
 
