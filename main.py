@@ -118,6 +118,8 @@ def main(model_loading_func=None, args=None, dataset_class=None, preprocess_func
 
         trojan = trojan_det(args, trigger_type, l1_norm, sym_l1_norm)
 
+        print(trojan)
+
     end_time = time.time()
     time_cost = end_time - start_time
 

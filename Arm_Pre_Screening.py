@@ -79,7 +79,7 @@ def Pre_Screening(args, model, dataset_class=None, preprocess_func=None):
                 top_index = torch.LongTensor(np.intersect1d(top_index_logit, top_index_median))
 
                 if len(top_index) > 0:
-                    if target_class not  in [3,5]: continue
+                    # if target_class not  in [3,5]: continue
                     triggered_classes = triggered_classes[top_index]
 
                     triggered_classes_logits = triggered_classes_logits[top_index]
@@ -122,7 +122,7 @@ def specific_label_trigger_det(args, topk_index, topk_logit):
         # print(tmp_1_logit)
         tmp_2 = torch.zeros(args.num_classes)
         for j in range(args.num_classes):
-            # for every other class, 
+            # for every other class,
             if j == i:
                 tmp_2[j] = -1
             else:
